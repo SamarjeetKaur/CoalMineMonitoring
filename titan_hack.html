@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<head>
+    <meta name="viewport" id="vp" content="initial-scale=1.0,user-scalable=no,maximum-scale=1,width=device-width" />
+    <meta charset="utf-8" />
+
+    <link rel="stylesheet" href="https://api.mazemap.com/js/v2.0.9/mazemap.min.css">
+    <script type='text/javascript' src='https://api.mazemap.com/js/v2.0.9/mazemap.min.js'></script>
+    <script src="https://www.gstatic.com/firebasejs/5.2.0/firebase.js"></script>
+
+      <script>
+        // Initialize Firebase
+        var config = {
+          apiKey: "AIzaSyD69O9TbsQ-BjC48TsuBwvP3r0pwxwkuE4",
+          authDomain: "coalmine-e9ae6.firebaseapp.com",
+          databaseURL: "https://coalmine-e9ae6.firebaseio.com",
+          projectId: "coalmine-e9ae6",
+          storageBucket: "",
+          messagingSenderId: "601640003236"
+        };
+        firebase.initializeApp(config);
+        </script>
+
+    <style>
+        body { margin:0px; padding:0px; width: 100vw; height:100vh; }
+    </style>
+
+    <style>
+    #map{
+      margin-top: 300px;
+      margin-left: 0px;
+      height: 510px;  /* The height is 400 pixels */
+        width: 100%;  /* The width is the width of the web page */
+        position: bottom;
+    }
+    h1{
+      color: white;
+      text-align: center;
+    }
+    img{
+      position: absolute;
+      left:80%;
+      bottom: 65%;
+
+      height: 300px;
+      width: 400px;
+
+    }
+
+    #alert
+    {
+      background-color: red;
+      border-radius: 30px;
+      padding: 10px 10px;
+      font-size: 35px;
+      margin-top: 20px;
+      margin-left: 300px;
+    }
+    #medical
+    {
+      background-color: green;
+      border-radius: 30px;
+      padding: 10px 10px;
+      font-size: 35px;
+      margin-left: 80px;
+    }
+    #abort
+    {
+      background-color: yellow;
+      border-radius: 30px;
+      padding: 10px 10px;
+      font-size: 35px;
+      margin-left: 80px;
+    }
+
+    body{
+      background-color: black;
+    }
+        /*body { margin:0px; padding:0px; width: 100%; height:100%; }*/
+    </style>
+
+</head>
+<body>
+    <div id="map" class="mazemap"></div>
+    <h1>COAL MINE MONITORING SYSTEM</h1>
+    <button id="alert"> ALERT</button>
+    <button id="medical"> MEDICAL ASSISTANCE</button>
+    <button id="abort"> ABORT</button>
+    <img src = "https://www.thehindu.com/business/Industry/article18950917.ece/alternates/FREE_660/10THBUCOAL1"  >
+
+
+
+
+    <script>
+
+        var Latref = firebase.database().ref('Coordinates/'+'LAT/');
+        var Lngref = firebase.database().ref('Coordinates/'+'LNG/');
+
+        var LAT;
+        var LATnum;
+        var LNG;
+        var LNGnum;
+        Latref.on('value', function(Snapshot) {
+
+          LAT = Snapshot.val();
+
+
+        });
+
+        Lngref.on('value', function(Snapshot) {
+
+
+          LNG = Snapshot.val();}
+        );
+
+        var startLngLat = {lng: -78.49890300323919, lat: 38.03140865387675};
+        var destLngLat = {lng: -78.4985511896671, lat: 38.03148740262034};
+
+        // Just the same way to initialize as always...
+        var myMap = new Mazemap.Map({
+            container: 'map',
+            campuses: 50,
+            center: startLngLat,
+            zoom: 18.837,
+            zLevel: 1,
+            zLevelControl: false,
+            scrollZoom: false,
+            doubleClickZoom: false,
+            touchZoomRotate: false,
+            interactive: false
+        });
+
+        var zoomInOutBool = false;
+        var mapZoom = 18.837;
+
+        myMap.on('load', function(){
+
+          addMarkers();
+            console.log('mazemap ready');
+
+
+            var blueDot = new Mazemap.BlueDot( {
+                accuracyCircle: true,
+                zLevel: 1
+            } ).setLngLat( startLngLat ).addTo(myMap);
+
+
+            function setNewPosition(){
+
+                var newLngLat = calcLinearLatLng(startLngLat, destLngLat, 5);
+
+                blueDot.setLngLat(newLngLat, {animate: true, duration: 400});
+
+                myMap.flyTo({ center: newLngLat, duration: 400, easing: function(a){
+                    return a;
+                }});
+            }
+
+            function setNewAccuracy(){
+                var accuracy = Math.random() * 3 + 10;
+                blueDot.setAccuracy(accuracy);
+            }
+
+            setInterval(setNewPosition, 250);
+            setInterval(setNewAccuracy, 2000);
+
+            setInterval(toggleZoomInOut, 5000);
+        });
+
+        function toggleZoomInOut(){
+            zoomInOutBool = !zoomInOutBool;
+
+            if(zoomInOutBool){
+                mapZoom = 20.5;
+            }else{
+                mapZoom = 18.837;
+            };
+        }
+
+        // Returns a linear moving point along the line between startLatLng and endLatLng given a speed factor
+        function calcLinearLatLng(startLatLng, endLatLng, speed){
+
+            var startPoint = myMap.project(startLatLng);
+            var endPoint = myMap.project(endLatLng);
+
+            var dX = endPoint.x - startPoint.x;
+            var dY = endPoint.y - startPoint.y;
+
+            var now = performance.now();
+
+            var lengthTime = speed * 1000;
+
+            var timeFraction = (now % lengthTime) / lengthTime;
+
+            var fractionX = dX * timeFraction;
+            var fractionY = dY * timeFraction;
+
+            var fractionPoint = new Mazemap.mapboxgl.Point(fractionX, fractionY);
+
+
+            //Alternate the direction
+            var direction = Math.floor( now / lengthTime) % 2 ;
+
+            var calcPoint;
+            if(direction){
+                calcPoint = endPoint.sub(fractionPoint);
+            }else{
+                calcPoint = startPoint.add(fractionPoint);
+            }
+            var calcLatLng = myMap.unproject(calcPoint);
+
+            return calcLatLng;
+        }
+
+        function addMarkers(){
+            var i, lngLat, marker;
+            var allMarkers = [];
+            for(i = 0; i < markers.length; i++){
+                lngLat = markers[i].lngLat;
+                options = markers[i].options;
+
+                var marker = new Mazemap.MazeMarker( options ).setLngLat( lngLat ).addTo(myMap);
+                allMarkers.push(marker);
+            }
+
+            // Zoom to bounds of all markers
+            var bounds = new Mazemap.mapboxgl.LngLatBounds();
+            allMarkers.forEach( (marker) => {
+                bounds.extend( marker.getLngLat() );
+            });
+            myMap.fitBounds(bounds, {padding: 100});
+
+        }
+
+
+        var markers = [
+            {
+                lngLat: {lng: -78.49868773040183, lat: 38.04116378463950},
+                options: {
+                    color: 'MazeBlue',
+                    size: 44,
+                    glyphColor:'#FFF',
+                    glyph: 'A',
+                    innerCircle: false,
+                    zLevel: 1
+                }
+            },
+
+
+
+
+            {
+              lngLat: {lng: -78.4976511896671, lat: 38.04119740262034},
+              options: {
+                  color: 'MazePink',
+                  size: 44,
+                  glyphColor:'#FFF',
+                  glyph: 'B',
+                  innerCircle: false,
+                  zLevel: 1
+                }
+            }
+
+        ];
+
+
+
+    </script>
+</body>
